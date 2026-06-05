@@ -45,14 +45,30 @@ const parseId = (s: string): { kind: "card" | "col"; raw: string } => ({
  */
 export function BoardTitle() {
   const [count, setCount] = useState<number | null>(null);
+  const [titleName, setTitleName] = useState<string>("");
   const version = useApp((s) => s.jobsVersion);
 
+  // Refetch jobs (count) + profile (name) whenever something bumps the
+  // jobs version. The same hook updates after a save in /settings because
+  // the user navigates back to /board (re-mount → re-fetch).
   useEffect(() => {
     fetch("/api/jobs")
       .then((r) => r.json())
       .then((j: { jobs: Job[] }) => setCount(j.jobs.length))
       .catch(() => setCount(null));
+    fetch("/api/profile")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p: { name?: string; email?: string } | null) => {
+        if (!p) return;
+        const first = (p.name || p.email || "").split(" ")[0].split("@")[0];
+        setTitleName(first.toUpperCase());
+      })
+      .catch(() => setTitleName(""));
   }, [version]);
+
+  const possessive = titleName
+    ? `${titleName}’S JOB BOARD`
+    : "JOB BOARD";
 
   return (
     <>
@@ -64,7 +80,7 @@ export function BoardTitle() {
           </span>
         )}
       </p>
-      <h1 className="display-xl">SARANG&rsquo;S JOB BOARD</h1>
+      <h1 className="display-xl">{possessive}</h1>
     </>
   );
 }
