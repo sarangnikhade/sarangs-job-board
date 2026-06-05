@@ -1,6 +1,4 @@
 import "server-only";
-import { JSDOM } from "jsdom";
-import { Readability } from "@mozilla/readability";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
@@ -13,6 +11,12 @@ export type FetchResult =
 /**
  * Fetch a URL with a browser UA, 8s timeout, then run Mozilla Readability
  * over the resulting HTML to extract the main article text.
+ *
+ * jsdom + Readability are dynamically imported here (not at module top)
+ * because jsdom pulls in CJS/ESM-interop-fragile transitive deps
+ * (html-encoding-sniffer → @exodus/bytes) that crash at module load
+ * inside Netlify's Lambda bundler. Lazy import keeps the GET path on
+ * /api/jobs from crashing when no URL fetch is required.
  *
  * On any failure (network, non-200, captcha, empty body, blocked) the
  * caller falls back to the paste textarea — never throws.
@@ -40,6 +44,10 @@ export async function fetchAndExtract(url: string): Promise<FetchResult> {
   }
 
   try {
+    const [{ JSDOM }, { Readability }] = await Promise.all([
+      import("jsdom"),
+      import("@mozilla/readability"),
+    ]);
     const dom = new JSDOM(html, { url });
     const reader = new Readability(dom.window.document);
     const article = reader.parse();
