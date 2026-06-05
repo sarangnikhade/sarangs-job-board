@@ -38,6 +38,37 @@ const parseId = (s: string): { kind: "card" | "col"; raw: string } => ({
   raw: s.replace(/^(card-|col-)/, ""),
 });
 
+/**
+ * Title band — shown on the board page. Pulls the live job count from
+ * the same store the board uses so adding/removing a job updates the
+ * total without a manual refetch.
+ */
+export function BoardTitle() {
+  const [count, setCount] = useState<number | null>(null);
+  const version = useApp((s) => s.jobsVersion);
+
+  useEffect(() => {
+    fetch("/api/jobs")
+      .then((r) => r.json())
+      .then((j: { jobs: Job[] }) => setCount(j.jobs.length))
+      .catch(() => setCount(null));
+  }, [version]);
+
+  return (
+    <>
+      <p className="caption-uppercase mb-6">
+        PIPELINE / 2026
+        {count != null && (
+          <span style={{ color: "var(--color-muted-soft)" }}>
+            {" "}· {count} TOTAL
+          </span>
+        )}
+      </p>
+      <h1 className="display-xl">SARANG&rsquo;S JOB BOARD</h1>
+    </>
+  );
+}
+
 export function BoardClient() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);

@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { parseResume } from "@/lib/parsers/resume";
+import { requireUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
 /**
- * GET — list all resumes with lightweight previews (no full text body).
+ * GET — list the signed-in user's resumes with lightweight previews.
  */
 export async function GET() {
+  const session = await requireUser();
+  if (session instanceof NextResponse) return session;
+
   const db = await getDb();
   const rows = await db
     .select({
@@ -21,6 +25,7 @@ export async function GET() {
       has_text: schema.resumes.text,
     })
     .from(schema.resumes)
+    .where(eq(schema.resumes.user_id, session.userId))
     .orderBy(asc(schema.resumes.id))
     .all();
 
@@ -38,13 +43,10 @@ export async function GET() {
   return NextResponse.json({ resumes });
 }
 
-/**
- * POST — create a new resume row.
- *
- * Multipart body: { label, file } — parse the file, store text + filename.
- * JSON body: { label } — empty resume, label-only (a slot for later upload).
- */
 export async function POST(req: Request) {
+  const session = await requireUser();
+  if (session instanceof NextResponse) return session;
+
   const ct = req.headers.get("content-type") ?? "";
   const db = await getDb();
   const now = Date.now();
@@ -76,17 +78,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "label is required" }, { status: 400 });
   }
 
-  // No default yet? Promote this row.
   const existingDefault = await db
     .select({ id: schema.resumes.id })
     .from(schema.resumes)
-    .where(eq(schema.resumes.is_default, 1))
+    .where(
+      and(
+        eq(schema.resumes.user_id, session.userId),
+        eq(schema.resumes.is_default, 1),
+      ),
+    )
     .get();
   const hasDefault = !!existingDefault;
 
   const inserted = await db
     .insert(schema.resumes)
     .values({
+      user_id: session.userId,
       label,
       text,
       file_name: fileName,

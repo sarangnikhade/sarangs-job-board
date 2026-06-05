@@ -5,8 +5,7 @@ import { useEffect, useRef, useState } from "react";
 type ProfileShape = {
   name: string;
   email: string;
-  has_openrouter_key: boolean;
-  openrouter_key_mask: string;
+  image: string;
 };
 
 type ResumeShape = {
@@ -22,8 +21,6 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState<ProfileShape | null>(null);
   const [resumes, setResumes] = useState<ResumeShape[]>([]);
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [keyInput, setKeyInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState("");
@@ -39,22 +36,18 @@ export default function SettingsPage() {
     ]);
     setProfile(p);
     setName(p.name);
-    setEmail(p.email);
     setResumes(r.resumes);
   }
 
   async function saveProfile() {
     setSaving(true);
-    const body: Record<string, string> = { name, email };
-    if (keyInput) body.openrouter_key = keyInput;
     const res = await fetch("/api/profile", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ name }),
     });
     setSaving(false);
     if (!res.ok) return setFlash("SAVE FAILED");
-    setKeyInput("");
     setFlash("SAVED");
     refresh();
   }
@@ -76,21 +69,31 @@ export default function SettingsPage() {
       {/* Profile */}
       <section className="mt-[120px]">
         <h2 className="display-sm mb-10">PROFILE</h2>
-        <label className="caption-uppercase block mb-2">NAME</label>
-        <input
-          className="text-input mb-10"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Sarang"
-        />
-        <label className="caption-uppercase block mb-2">EMAIL</label>
+        <p
+          className="body-md mb-8"
+          style={{ color: "var(--color-muted)" }}
+        >
+          Signed in as{" "}
+          <span style={{ color: "var(--color-on-dark)" }}>
+            {profile?.email || "…"}
+          </span>
+        </p>
+        <label className="caption-uppercase block mb-2">DISPLAY NAME</label>
         <input
           className="text-input"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Your name"
         />
+        <div className="mt-10">
+          <button
+            className="btn-primary"
+            onClick={saveProfile}
+            disabled={saving}
+          >
+            {saving ? "SAVING…" : "SAVE PROFILE"}
+          </button>
+        </div>
       </section>
 
       <div className="hairline-x mt-[120px]" />
@@ -123,7 +126,6 @@ export default function SettingsPage() {
           ))}
         </div>
 
-        {/* Add new label */}
         <div className="mt-10 flex items-end gap-4">
           <div className="flex-1">
             <label className="caption-uppercase block mb-2">
@@ -155,50 +157,6 @@ export default function SettingsPage() {
           </button>
         </div>
       </section>
-
-      <div className="hairline-x mt-[120px]" />
-
-      {/* OpenRouter Key */}
-      <section className="mt-[120px]">
-        <h2 className="display-sm mb-10">OPENROUTER KEY</h2>
-        <p className="body-md mb-8">
-          Used for kit generation via{" "}
-          <a
-            className="text-link"
-            href="https://openrouter.ai/keys"
-            target="_blank"
-            rel="noreferrer"
-          >
-            openrouter.ai/keys
-          </a>
-          . Stored encrypted at rest.
-        </p>
-
-        {profile?.has_openrouter_key && (
-          <p className="caption-uppercase mb-6">
-            CURRENT — {profile.openrouter_key_mask}
-          </p>
-        )}
-
-        <label className="caption-uppercase block mb-2">NEW KEY</label>
-        <input
-          className="text-input mb-10"
-          type="password"
-          value={keyInput}
-          onChange={(e) => setKeyInput(e.target.value)}
-          placeholder="sk-or-…"
-        />
-      </section>
-
-      <div className="mt-16">
-        <button
-          className="btn-primary"
-          onClick={saveProfile}
-          disabled={saving}
-        >
-          {saving ? "SAVING…" : "SAVE PROFILE"}
-        </button>
-      </div>
     </div>
   );
 }

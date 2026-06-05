@@ -1,5 +1,7 @@
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { requireUser } from "@/lib/session";
+import { NextResponse } from "next/server";
 import {
   KIT_PART_TITLES,
   exportFileName,
@@ -16,6 +18,8 @@ type Ctx = { params: Promise<{ id: string }> };
 const KIT_PARTS: KitPart[] = ["cover", "bullets", "questions", "brief"];
 
 export async function GET(req: Request, ctx: Ctx) {
+  const session = await requireUser();
+  if (session instanceof NextResponse) return session;
   const { id } = await ctx.params;
   const url = new URL(req.url);
   const part = url.searchParams.get("part") as KitPart | null;
@@ -32,7 +36,12 @@ export async function GET(req: Request, ctx: Ctx) {
   const job = await db
     .select()
     .from(schema.jobs)
-    .where(eq(schema.jobs.id, Number(id)))
+    .where(
+      and(
+        eq(schema.jobs.id, Number(id)),
+        eq(schema.jobs.user_id, session.userId),
+      ),
+    )
     .get();
   if (!job) return jsonError("job not found", 404);
 

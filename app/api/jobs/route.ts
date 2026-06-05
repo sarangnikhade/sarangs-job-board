@@ -1,35 +1,29 @@
 import { NextResponse } from "next/server";
-import { asc, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { fetchAndExtract } from "@/lib/parsers/url";
 import { extractJob } from "@/lib/ai/extract";
+import { requireUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
-/**
- * GET — list every job, grouped client-side by status.
- * Ordered: status then position then id.
- */
 export async function GET() {
+  const session = await requireUser();
+  if (session instanceof NextResponse) return session;
   const db = await getDb();
   const rows = await db
     .select()
     .from(schema.jobs)
+    .where(eq(schema.jobs.user_id, session.userId))
     .orderBy(asc(schema.jobs.status), asc(schema.jobs.position), asc(schema.jobs.id))
     .all();
   return NextResponse.json({ jobs: rows });
 }
 
-/**
- * POST — create a new job from { url } or { text }.
- *
- * URL flow: fetch → Readability → LLM extract. If fetch fails the
- * response carries { needsPaste: true, reason } so the UI can swap
- * to a paste textarea.
- *
- * Text flow: LLM extract directly.
- */
 export async function POST(req: Request) {
+  const session = await requireUser();
+  if (session instanceof NextResponse) return session;
+
   const body = (await req.json().catch(() => ({}))) as {
     url?: string;
     text?: string;
@@ -60,7 +54,6 @@ export async function POST(req: Request) {
   const db = await getDb();
   const now = Date.now();
 
-  // Hand the LLM the list of saved resume labels so it can auto-tag.
   const resumeRows = await db
     .select({
       id: schema.resumes.id,
@@ -68,6 +61,7 @@ export async function POST(req: Request) {
       is_default: schema.resumes.is_default,
     })
     .from(schema.resumes)
+    .where(eq(schema.resumes.user_id, session.userId))
     .all();
   const labels = resumeRows.map((r) => r.label);
 
@@ -79,7 +73,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 
-  // Resolve resume_id: pick the LLM's chosen label, fall back to default.
   let resumeId: number | null = null;
   if (extracted.resume_label) {
     resumeId =
@@ -89,17 +82,22 @@ export async function POST(req: Request) {
     resumeId = resumeRows.find((r) => r.is_default)?.id ?? null;
   }
 
-  // Insert at the top of Wishlist (position = min - 1).
   const posRow = await db
     .select({ p: sql<number>`COALESCE(MIN(${schema.jobs.position}), 0) - 1` })
     .from(schema.jobs)
-    .where(sql`${schema.jobs.status} = 'wishlist'`)
+    .where(
+      and(
+        eq(schema.jobs.user_id, session.userId),
+        sql`${schema.jobs.status} = 'wishlist'`,
+      ),
+    )
     .get();
   const nextPos = posRow?.p ?? -1;
 
   const inserted = await db
     .insert(schema.jobs)
     .values({
+      user_id: session.userId,
       title: extracted.title,
       company: extracted.company,
       location: extracted.location || null,

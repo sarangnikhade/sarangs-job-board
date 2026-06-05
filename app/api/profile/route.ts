@@ -1,59 +1,45 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { encryptSecret, maskKey, decryptSecret } from "@/lib/crypto";
+import { requireUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
+/**
+ * Returns the signed-in user's profile (name/email come from the
+ * NextAuth users row). OpenRouter key is an app-level secret now and
+ * is not exposed.
+ */
 export async function GET() {
-  const db = await getDb();
-  const row = await db
-    .select()
-    .from(schema.profile)
-    .where(eq(schema.profile.id, 1))
-    .get();
-  if (!row) return NextResponse.json({ error: "no profile" }, { status: 500 });
+  const session = await requireUser();
+  if (session instanceof NextResponse) return session;
 
-  let keyMask = "";
-  if (row.openrouter_key_enc) {
-    try {
-      keyMask = maskKey(decryptSecret(row.openrouter_key_enc));
-    } catch {
-      keyMask = "•••• (unreadable — APP_SECRET changed?)";
-    }
-  }
+  const db = await getDb();
+  const user = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.id, session.userId))
+    .get();
 
   return NextResponse.json({
-    name: row.name ?? "",
-    email: row.email ?? "",
-    resume_file_name: row.resume_file_name ?? "",
-    resume_text: row.resume_text ?? "",
-    has_openrouter_key: Boolean(row.openrouter_key_enc),
-    openrouter_key_mask: keyMask,
+    name: user?.name ?? "",
+    email: user?.email ?? "",
+    image: user?.image ?? "",
   });
 }
 
+/** PATCH allows the user to update their display name. */
 export async function PATCH(req: Request) {
-  const body = (await req.json()) as {
-    name?: string;
-    email?: string;
-    openrouter_key?: string;
-    clear_resume?: boolean;
-  };
+  const session = await requireUser();
+  if (session instanceof NextResponse) return session;
+  const body = (await req.json()) as { name?: string };
+  if (body.name === undefined) return NextResponse.json({ ok: true });
+
   const db = await getDb();
-  const now = Date.now();
-
-  const patch: Record<string, unknown> = { updated_at: now };
-  if (body.name !== undefined) patch.name = body.name;
-  if (body.email !== undefined) patch.email = body.email;
-  if (body.openrouter_key !== undefined && body.openrouter_key !== "") {
-    patch.openrouter_key_enc = encryptSecret(body.openrouter_key);
-  }
-  if (body.clear_resume) {
-    patch.resume_text = null;
-    patch.resume_file_name = null;
-  }
-
-  await db.update(schema.profile).set(patch).where(eq(schema.profile.id, 1)).run();
+  await db
+    .update(schema.users)
+    .set({ name: body.name })
+    .where(eq(schema.users.id, session.userId))
+    .run();
   return NextResponse.json({ ok: true });
 }

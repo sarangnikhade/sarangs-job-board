@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { requireUser } from "@/lib/session";
 import type { JobStatus } from "@/db/schema";
 
 export const runtime = "nodejs";
@@ -15,20 +16,29 @@ const STATUSES: JobStatus[] = [
 
 type Ctx = { params: Promise<{ id: string }> };
 
+function ownedJobFilter(id: number, userId: string) {
+  return and(eq(schema.jobs.id, id), eq(schema.jobs.user_id, userId));
+}
+
 export async function GET(_req: Request, ctx: Ctx) {
+  const session = await requireUser();
+  if (session instanceof NextResponse) return session;
   const { id } = await ctx.params;
   const db = await getDb();
   const job = await db
     .select()
     .from(schema.jobs)
-    .where(eq(schema.jobs.id, Number(id)))
+    .where(ownedJobFilter(Number(id), session.userId))
     .get();
   if (!job) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json({ job });
 }
 
 export async function PATCH(req: Request, ctx: Ctx) {
+  const session = await requireUser();
+  if (session instanceof NextResponse) return session;
   const { id } = await ctx.params;
+  const jobId = Number(id);
   const body = (await req.json()) as Partial<{
     status: JobStatus;
     position: number;
@@ -52,7 +62,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   const updated = await db
     .update(schema.jobs)
     .set(patch)
-    .where(eq(schema.jobs.id, Number(id)))
+    .where(ownedJobFilter(jobId, session.userId))
     .returning()
     .get();
   if (!updated) return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -60,8 +70,10 @@ export async function PATCH(req: Request, ctx: Ctx) {
 }
 
 export async function DELETE(_req: Request, ctx: Ctx) {
+  const session = await requireUser();
+  if (session instanceof NextResponse) return session;
   const { id } = await ctx.params;
   const db = await getDb();
-  await db.delete(schema.jobs).where(eq(schema.jobs.id, Number(id))).run();
+  await db.delete(schema.jobs).where(ownedJobFilter(Number(id), session.userId)).run();
   return NextResponse.json({ ok: true });
 }

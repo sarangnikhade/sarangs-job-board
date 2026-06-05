@@ -1,19 +1,33 @@
 import { NextResponse } from "next/server";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { generateKit } from "@/lib/ai/kit";
 import { MODEL } from "@/lib/openrouter";
+import { requireUser } from "@/lib/session";
 
 export const runtime = "nodejs";
-// Kit generation runs four LLM calls in parallel — give it room.
 export const maxDuration = 60;
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** Return the most recent kit row for this job, if any. */
 export async function GET(_req: Request, ctx: Ctx) {
+  const session = await requireUser();
+  if (session instanceof NextResponse) return session;
   const { id } = await ctx.params;
   const db = await getDb();
+  // Verify ownership of the job before exposing its kit.
+  const job = await db
+    .select({ id: schema.jobs.id })
+    .from(schema.jobs)
+    .where(
+      and(
+        eq(schema.jobs.id, Number(id)),
+        eq(schema.jobs.user_id, session.userId),
+      ),
+    )
+    .get();
+  if (!job) return NextResponse.json({ kit: null });
+
   const row = await db
     .select()
     .from(schema.kits)
@@ -23,11 +37,9 @@ export async function GET(_req: Request, ctx: Ctx) {
   return NextResponse.json({ kit: row ?? null });
 }
 
-/**
- * Generate a fresh kit for this job. Replaces any existing kit row.
- * Body is empty — all inputs come from the persisted job + profile.
- */
 export async function POST(_req: Request, ctx: Ctx) {
+  const session = await requireUser();
+  if (session instanceof NextResponse) return session;
   const { id } = await ctx.params;
   const jobId = Number(id);
   const db = await getDb();
@@ -35,17 +47,23 @@ export async function POST(_req: Request, ctx: Ctx) {
   const job = await db
     .select()
     .from(schema.jobs)
-    .where(eq(schema.jobs.id, jobId))
+    .where(
+      and(eq(schema.jobs.id, jobId), eq(schema.jobs.user_id, session.userId)),
+    )
     .get();
   if (!job) return NextResponse.json({ error: "job not found" }, { status: 404 });
 
-  // Resolve which resume to use: explicit job.resume_id, else default.
   let resumeText = "";
   if (job.resume_id != null) {
     const r = await db
       .select({ text: schema.resumes.text })
       .from(schema.resumes)
-      .where(eq(schema.resumes.id, job.resume_id))
+      .where(
+        and(
+          eq(schema.resumes.id, job.resume_id),
+          eq(schema.resumes.user_id, session.userId),
+        ),
+      )
       .get();
     resumeText = r?.text ?? "";
   }
@@ -53,7 +71,12 @@ export async function POST(_req: Request, ctx: Ctx) {
     const def = await db
       .select({ text: schema.resumes.text })
       .from(schema.resumes)
-      .where(eq(schema.resumes.is_default, 1))
+      .where(
+        and(
+          eq(schema.resumes.user_id, session.userId),
+          eq(schema.resumes.is_default, 1),
+        ),
+      )
       .get();
     resumeText = def?.text ?? "";
   }
@@ -71,7 +94,6 @@ export async function POST(_req: Request, ctx: Ctx) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 
-  // Replace any existing kit row for this job.
   await db.delete(schema.kits).where(eq(schema.kits.job_id, jobId)).run();
   const inserted = await db
     .insert(schema.kits)
@@ -86,6 +108,5 @@ export async function POST(_req: Request, ctx: Ctx) {
     })
     .returning()
     .get();
-
   return NextResponse.json({ kit: inserted });
 }

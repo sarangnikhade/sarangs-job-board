@@ -1,15 +1,62 @@
-import { sqliteTable, integer, real, text } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  integer,
+  real,
+  text,
+  primaryKey,
+} from "drizzle-orm/sqlite-core";
+
+/* ---------- NextAuth (Auth.js) tables ---------- */
+
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey(),
+  name: text("name"),
+  email: text("email").unique(),
+  emailVerified: integer("emailVerified", { mode: "timestamp_ms" }),
+  image: text("image"),
+});
+
+export const accounts = sqliteTable(
+  "accounts",
+  {
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    provider: text("provider").notNull(),
+    providerAccountId: text("providerAccountId").notNull(),
+    refresh_token: text("refresh_token"),
+    access_token: text("access_token"),
+    expires_at: integer("expires_at"),
+    token_type: text("token_type"),
+    scope: text("scope"),
+    id_token: text("id_token"),
+    session_state: text("session_state"),
+  },
+  (t) => [primaryKey({ columns: [t.provider, t.providerAccountId] })],
+);
+
+export const verificationTokens = sqliteTable(
+  "verificationTokens",
+  {
+    identifier: text("identifier").notNull(),
+    token: text("token").notNull(),
+    expires: integer("expires", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.identifier, t.token] })],
+);
+
+/* ---------- App tables ---------- */
 
 /**
- * Singleton profile row (id=1 always).
- * openrouter_key_enc holds AES-GCM ciphertext as base64.
+ * Legacy profile table — kept for back-compat during the user-scoping
+ * migration but no longer read in any code path. NextAuth's users table
+ * now holds name/email.
  */
 export const profile = sqliteTable("profile", {
   id: integer("id").primaryKey(),
   name: text("name"),
   email: text("email"),
-  // Legacy single-resume columns. Kept for back-compat during the
-  // multi-resume migration; not referenced by new code paths.
   resume_text: text("resume_text"),
   resume_file_name: text("resume_file_name"),
   openrouter_key_enc: text("openrouter_key_enc"),
@@ -17,12 +64,9 @@ export const profile = sqliteTable("profile", {
   updated_at: integer("updated_at").notNull(),
 });
 
-/**
- * Multi-resume support: one row per sector / role-family. One row is
- * flagged is_default = 1 at any given time.
- */
 export const resumes = sqliteTable("resumes", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  user_id: text("user_id").references(() => users.id, { onDelete: "cascade" }),
   label: text("label").notNull(),
   text: text("text"),
   file_name: text("file_name"),
@@ -40,6 +84,7 @@ export type JobStatus =
 
 export const jobs = sqliteTable("jobs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  user_id: text("user_id").references(() => users.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   company: text("company").notNull(),
   location: text("location"),
@@ -73,3 +118,4 @@ export type Profile = typeof profile.$inferSelect;
 export type Job = typeof jobs.$inferSelect;
 export type Kit = typeof kits.$inferSelect;
 export type Resume = typeof resumes.$inferSelect;
+export type User = typeof users.$inferSelect;

@@ -1,37 +1,53 @@
 import { NextResponse } from "next/server";
-import { eq, ne } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { parseResume } from "@/lib/parsers/resume";
+import { requireUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** GET — full row including text body. */
 export async function GET(_req: Request, ctx: Ctx) {
+  const session = await requireUser();
+  if (session instanceof NextResponse) return session;
   const { id } = await ctx.params;
   const db = await getDb();
   const row = await db
     .select()
     .from(schema.resumes)
-    .where(eq(schema.resumes.id, Number(id)))
+    .where(
+      and(
+        eq(schema.resumes.id, Number(id)),
+        eq(schema.resumes.user_id, session.userId),
+      ),
+    )
     .get();
   if (!row) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json({ resume: row });
 }
 
-/**
- * PATCH — rename, set as default, replace file, or clear text.
- *
- * - JSON body: { label?, is_default?, clear?: true }
- * - Multipart body: { file } — replace the resume file + text.
- */
 export async function PATCH(req: Request, ctx: Ctx) {
+  const session = await requireUser();
+  if (session instanceof NextResponse) return session;
   const { id } = await ctx.params;
   const resumeId = Number(id);
   const db = await getDb();
   const now = Date.now();
   const ct = req.headers.get("content-type") ?? "";
+
+  // Verify the row belongs to this user before mutating.
+  const owned = await db
+    .select({ id: schema.resumes.id })
+    .from(schema.resumes)
+    .where(
+      and(
+        eq(schema.resumes.id, resumeId),
+        eq(schema.resumes.user_id, session.userId),
+      ),
+    )
+    .get();
+  if (!owned) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   const patch: Record<string, unknown> = { updated_at: now };
   let promoteDefault = false;
@@ -68,10 +84,16 @@ export async function PATCH(req: Request, ctx: Ctx) {
   }
 
   if (promoteDefault) {
+    // Clear default on the user's other resumes.
     await db
       .update(schema.resumes)
       .set({ is_default: 0, updated_at: now })
-      .where(ne(schema.resumes.id, resumeId))
+      .where(
+        and(
+          ne(schema.resumes.id, resumeId),
+          eq(schema.resumes.user_id, session.userId),
+        ),
+      )
       .run();
     patch.is_default = 1;
   }
@@ -82,16 +104,12 @@ export async function PATCH(req: Request, ctx: Ctx) {
     .where(eq(schema.resumes.id, resumeId))
     .returning()
     .get();
-  if (!updated) return NextResponse.json({ error: "not found" }, { status: 404 });
-
   return NextResponse.json({ resume: updated });
 }
 
-/**
- * DELETE — remove a resume. If it was the default, promote the
- * oldest remaining resume to default.
- */
 export async function DELETE(_req: Request, ctx: Ctx) {
+  const session = await requireUser();
+  if (session instanceof NextResponse) return session;
   const { id } = await ctx.params;
   const resumeId = Number(id);
   const db = await getDb();
@@ -100,14 +118,23 @@ export async function DELETE(_req: Request, ctx: Ctx) {
   const row = await db
     .select()
     .from(schema.resumes)
-    .where(eq(schema.resumes.id, resumeId))
+    .where(
+      and(
+        eq(schema.resumes.id, resumeId),
+        eq(schema.resumes.user_id, session.userId),
+      ),
+    )
     .get();
   if (!row) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   await db.delete(schema.resumes).where(eq(schema.resumes.id, resumeId)).run();
 
   if (row.is_default) {
-    const fallback = await db.select().from(schema.resumes).get();
+    const fallback = await db
+      .select()
+      .from(schema.resumes)
+      .where(eq(schema.resumes.user_id, session.userId))
+      .get();
     if (fallback) {
       await db
         .update(schema.resumes)
