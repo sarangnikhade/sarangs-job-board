@@ -1,26 +1,247 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* ------------------------------------------------------------------
+   Bugatti design tokens
+   - Pure black canvas, no light mode
+   - Three-font trinity: Display (Saira Condensed), Text (EB Garamond),
+     Monospace (JetBrains Mono)
+   - Single non-monochrome color: link ice-blue (#c3d9f3)
+   - Weight 400 only — emphasis via size, tracking, case, family
+   ------------------------------------------------------------------ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Surface */
+  --color-canvas: #000000;
+  --color-surface-soft: #0d0d0d;
+  --color-surface-card: #141414;
+  --color-surface-elevated: #1f1f1f;
+
+  /* Hairlines */
+  --color-hairline: #262626;
+  --color-hairline-strong: #3a3a3a;
+
+  /* Text */
+  --color-on-dark: #ffffff;
+  --color-body: #cccccc;
+  --color-body-strong: #e6e6e6;
+  --color-muted: #999999;
+  --color-muted-soft: #666666;
+
+  /* Brand / accent */
+  --color-primary: #ffffff;
+  --color-link: #c3d9f3;
+
+  /* Semantic */
+  --color-warning: #d4a017;
+  --color-success: #5fa657;
+
+  /* Spacing */
+  --spacing-xxs: 4px;
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 40px;
+  --spacing-xxl: 64px;
+  --spacing-section: 120px;
+
+  /* Radius */
+  --radius-none: 0px;
+  --radius-pill: 9999px;
+  --radius-full: 9999px;
+
+  /* Font families — substitutes loaded by next/font in layout.tsx */
+  --font-display: var(--font-saira), -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  --font-text: var(--font-garamond), Garamond, "Times New Roman", serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono",
+    "Cascadia Mono", monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-body);
+  font-family: var(--font-text);
+  font-weight: 400;
+}
+
+/* Wide-tracked Bugatti Display headlines */
+.display-xl {
+  font-family: var(--font-display);
+  font-size: 64px;
+  line-height: 1.1;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--color-on-dark);
+}
+.display-lg {
+  font-family: var(--font-display);
+  font-size: 48px;
+  line-height: 1.15;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--color-on-dark);
+}
+.display-md {
+  font-family: var(--font-display);
+  font-size: 32px;
+  line-height: 1.2;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--color-on-dark);
+}
+.display-sm {
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 1.3;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--color-on-dark);
+}
+.wordmark {
+  font-family: var(--font-display);
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--color-on-dark);
+}
+.title-md {
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1.3;
+  letter-spacing: 1px;
+  font-weight: 400;
+  color: var(--color-on-dark);
+}
+.title-sm {
+  font-family: var(--font-display);
+  font-size: 16px;
+  line-height: 1.3;
+  letter-spacing: 1.5px;
+  font-weight: 400;
+  color: var(--color-on-dark);
+}
+
+/* Bugatti Monospace — buttons, captions, nav */
+.caption-uppercase {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+.nav-link {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.4;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 400;
+  color: var(--color-on-dark);
+}
+.btn-label {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  font-weight: 400;
+}
+
+/* Bugatti Text Regular — body */
+.body-md {
+  font-family: var(--font-text);
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--color-body);
+}
+.body-sm {
+  font-family: var(--font-text);
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--color-body);
+}
+
+/* Buttons — transparent pill with 1px white outline */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--color-on-dark);
+  border: 1px solid var(--color-on-dark);
+  border-radius: var(--radius-pill);
+  padding: 14px 32px;
+  min-height: 44px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  font-weight: 400;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.btn-primary:active {
+  background: var(--color-on-dark);
+  color: var(--color-canvas);
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-on-dark);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-on-dark);
+  cursor: pointer;
+}
+
+/* Inline anchor link — the only non-monochrome color */
+a.text-link {
+  color: var(--color-link);
+  text-decoration: underline;
+}
+
+/* Underline-only text input */
+.text-input {
+  background: transparent;
+  color: var(--color-on-dark);
+  border: 0;
+  border-bottom: 1px solid var(--color-hairline-strong);
+  padding: 12px 0;
+  height: 44px;
+  width: 100%;
+  font-family: var(--font-text);
+  font-size: 16px;
+  outline: none;
+}
+.text-input:focus {
+  border-bottom-color: var(--color-on-dark);
+}
+.text-input::placeholder {
+  color: var(--color-muted);
+}
+
+/* Hairline divider */
+.hairline-x {
+  border-top: 1px solid var(--color-hairline);
+}
+
+/* Selection */
+::selection {
+  background: var(--color-on-dark);
+  color: var(--color-canvas);
 }
