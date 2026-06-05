@@ -46,3 +46,9 @@ next-env.d.ts
 
 # uploaded resumes
 /uploads/
+
+# Local Netlify folder
+.netlify
+
+# Tailwind v4 scanner debug logs
+tailwindcss-*.log
