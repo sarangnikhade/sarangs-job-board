@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Saira_Condensed, EB_Garamond, JetBrains_Mono } from "next/font/google";
+import { Saira_Condensed, Inter, JetBrains_Mono } from "next/font/google";
 import { TopNav } from "@/components/brand/TopNav";
 import { AddJobLauncher } from "@/components/board/AddJobLauncher";
 import { JobSheet } from "@/components/board/JobSheet";
@@ -13,9 +13,9 @@ const saira = Saira_Condensed({
   display: "swap",
 });
 
-const garamond = EB_Garamond({
+const inter = Inter({
   weight: ["400"],
-  variable: "--font-garamond",
+  variable: "--font-body",
   subsets: ["latin"],
   display: "swap",
 });
@@ -38,7 +38,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${saira.variable} ${garamond.variable} ${jetbrains.variable} h-full antialiased`}
+      className={`${saira.variable} ${inter.variable} ${jetbrains.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <TopNav />

@@ -85,7 +85,7 @@ export function JobSheet() {
           style={{ background: "rgba(0,0,0,0.75)" }}
         />
         <Dialog.Content
-          className="fixed right-0 top-0 z-50 h-full w-full sm:w-[560px] outline-none overflow-y-auto"
+          className="fixed right-0 top-0 z-50 h-full w-full sm:w-[640px] md:w-[760px] lg:w-[860px] xl:w-[960px] outline-none overflow-y-auto"
           style={{
             background: "var(--color-canvas)",
             borderLeft: "1px solid var(--color-hairline)",
