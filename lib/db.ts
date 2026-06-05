@@ -42,7 +42,7 @@ async function init(client: Client): Promise<void> {
       updated_at INTEGER NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS users (
+    CREATE TABLE IF NOT EXISTS user (
       id TEXT PRIMARY KEY,
       name TEXT,
       email TEXT UNIQUE,
@@ -50,8 +50,8 @@ async function init(client: Client): Promise<void> {
       image TEXT
     );
 
-    CREATE TABLE IF NOT EXISTS accounts (
-      userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    CREATE TABLE IF NOT EXISTS account (
+      userId TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
       type TEXT NOT NULL,
       provider TEXT NOT NULL,
       providerAccountId TEXT NOT NULL,
@@ -65,7 +65,7 @@ async function init(client: Client): Promise<void> {
       PRIMARY KEY (provider, providerAccountId)
     );
 
-    CREATE TABLE IF NOT EXISTS verificationTokens (
+    CREATE TABLE IF NOT EXISTS verificationToken (
       identifier TEXT NOT NULL,
       token TEXT NOT NULL,
       expires INTEGER NOT NULL,
@@ -74,7 +74,7 @@ async function init(client: Client): Promise<void> {
 
     CREATE TABLE IF NOT EXISTS resumes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES user(id) ON DELETE CASCADE,
       label TEXT NOT NULL,
       text TEXT,
       file_name TEXT,
@@ -85,7 +85,7 @@ async function init(client: Client): Promise<void> {
 
     CREATE TABLE IF NOT EXISTS jobs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES user(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
       company TEXT NOT NULL,
       location TEXT,
@@ -122,9 +122,9 @@ async function init(client: Client): Promise<void> {
   await ensureColumn(client, "jobs", "resume_id",
     "ALTER TABLE jobs ADD COLUMN resume_id INTEGER REFERENCES resumes(id) ON DELETE SET NULL");
   await ensureColumn(client, "jobs", "user_id",
-    "ALTER TABLE jobs ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE CASCADE");
+    "ALTER TABLE jobs ADD COLUMN user_id TEXT REFERENCES user(id) ON DELETE CASCADE");
   await ensureColumn(client, "resumes", "user_id",
-    "ALTER TABLE resumes ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE CASCADE");
+    "ALTER TABLE resumes ADD COLUMN user_id TEXT REFERENCES user(id) ON DELETE CASCADE");
 
   const now = Date.now();
 
