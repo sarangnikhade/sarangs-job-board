@@ -61,25 +61,49 @@ export function KitPanel({ jobId }: Props) {
   if (!kit) {
     return (
       <div
-        className="p-16 text-center"
-        style={{ border: "1px solid var(--color-hairline)" }}
+        style={{
+          border: "1px solid var(--color-hairline)",
+          padding: "64px 32px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          textAlign: "center",
+          gap: 24,
+        }}
       >
-        <p className="caption-uppercase mb-6">NO KIT YET</p>
+        <p className="caption-uppercase" style={{ margin: 0 }}>
+          NO KIT YET
+        </p>
         <p
-          className="body-sm mb-8 max-w-md mx-auto"
-          style={{ color: "var(--color-muted)" }}
+          className="body-sm"
+          style={{
+            margin: 0,
+            maxWidth: 460,
+            color: "var(--color-muted)",
+            lineHeight: 1.6,
+          }}
         >
-          Runs four prompts in parallel against Claude Sonnet 4: cover letter,
-          rewritten resume bullets, five interview questions, one-page brief.
+          Runs four prompts in parallel against Claude Sonnet 4: cover
+          letter, rewritten resume bullets, five interview questions, and a
+          one-page company brief.
         </p>
         <button
+          type="button"
           className="btn-primary"
           onClick={generate}
           disabled={generating}
+          style={{ marginTop: 16 }}
         >
           {generating ? "GENERATING…" : "GENERATE KIT"}
         </button>
-        {err && <p className="caption-uppercase mt-6">{err}</p>}
+        {err && (
+          <p
+            className="caption-uppercase"
+            style={{ margin: 0, color: "var(--color-warning)" }}
+          >
+            {err}
+          </p>
+        )}
       </div>
     );
   }
